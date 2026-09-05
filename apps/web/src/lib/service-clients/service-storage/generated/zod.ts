@@ -9940,6 +9940,11 @@ export const getItemsSoupResponse = zod
                   isRead: zod
                     .boolean()
                     .describe('Whether the thread has been read.'),
+                  isSignal: zod
+                    .boolean()
+                    .describe(
+                      "The denormalized `email_threads.is_signal` importance classification —\nthe same flag the soup Importance filter evaluates, distinct from\n`is_important` (Gmail's IMPORTANT label)."
+                    ),
                   name: zod
                     .string()
                     .nullish()
@@ -13596,6 +13601,11 @@ export const postItemsSoupResponse = zod
                   isRead: zod
                     .boolean()
                     .describe('Whether the thread has been read.'),
+                  isSignal: zod
+                    .boolean()
+                    .describe(
+                      "The denormalized `email_threads.is_signal` importance classification —\nthe same flag the soup Importance filter evaluates, distinct from\n`is_important` (Gmail's IMPORTANT label)."
+                    ),
                   name: zod
                     .string()
                     .nullish()
@@ -16716,6 +16726,11 @@ export const postItemsSoupAstResponse = zod
                   isRead: zod
                     .boolean()
                     .describe('Whether the thread has been read.'),
+                  isSignal: zod
+                    .boolean()
+                    .describe(
+                      "The denormalized `email_threads.is_signal` importance classification —\nthe same flag the soup Importance filter evaluates, distinct from\n`is_important` (Gmail's IMPORTANT label)."
+                    ),
                   name: zod
                     .string()
                     .nullish()
@@ -20098,6 +20113,11 @@ export const postItemsSoupAstGroupedResponse = zod
                         isRead: zod
                           .boolean()
                           .describe('Whether the thread has been read.'),
+                        isSignal: zod
+                          .boolean()
+                          .describe(
+                            "The denormalized `email_threads.is_signal` importance classification —\nthe same flag the soup Importance filter evaluates, distinct from\n`is_important` (Gmail's IMPORTANT label)."
+                          ),
                         name: zod
                           .string()
                           .nullish()
@@ -23220,6 +23240,11 @@ export const postItemsSoupAstGroupedResponse = zod
                         isRead: zod
                           .boolean()
                           .describe('Whether the thread has been read.'),
+                        isSignal: zod
+                          .boolean()
+                          .describe(
+                            "The denormalized `email_threads.is_signal` importance classification —\nthe same flag the soup Importance filter evaluates, distinct from\n`is_important` (Gmail's IMPORTANT label)."
+                          ),
                         name: zod
                           .string()
                           .nullish()

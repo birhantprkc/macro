@@ -25143,6 +25143,7 @@
           "isRead",
           "isDraft",
           "isImportant",
+          "isSignal",
           "sortTs",
           "createdAt",
           "updatedAt"
@@ -25173,6 +25174,10 @@
           "isRead": {
             "type": "boolean",
             "description": "Whether the thread has been read."
+          },
+          "isSignal": {
+            "type": "boolean",
+            "description": "The denormalized `email_threads.is_signal` importance classification —\nthe same flag the soup Importance filter evaluates, distinct from\n`is_important` (Gmail's IMPORTANT label)."
           },
           "name": {
             "type": ["string", "null"],
