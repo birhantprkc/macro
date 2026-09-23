@@ -1065,6 +1065,7 @@ export * from './postItemsSoupAstParams';
 export * from './postItemsSoupParams';
 export * from './postMessage';
 export * from './postMessageAnchor';
+export * from './postMessageId';
 export * from './postMessageNonce';
 export * from './postMessageNotificationPolicy';
 export * from './postMessageRequest';
