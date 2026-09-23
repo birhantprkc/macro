@@ -27,7 +27,7 @@ import { canNestBlock } from '@core/orchestrator';
 import { formatDate } from '@core/util/date';
 import { matches } from '@core/util/match';
 import { openInNewSplitForMention } from '@core/util/openInNewSplit';
-import { useSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
+import { useNativeSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
 import {
   $convertMentionToCard,
   $isDocumentMentionNode,
@@ -124,8 +124,8 @@ function SkillSlashText(props: {
   const systemSkills = useSystemSkillsQuery();
   const openSkill = createCallback((e: MouseEvent) => {
     if (systemSkills.isSystemSkillId(props.documentId)) return;
-    // Also keeps the outer mention click handler (read-only contexts) from
-    // opening the skill a second time.
+    // Also keeps the outer mention click handler from opening the skill a
+    // second time.
     e.stopPropagation();
     openDocument(
       'skill',
@@ -635,7 +635,10 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     });
   };
 
-  const navHandlers = useSplitNavigationHandler<HTMLSpanElement>((e) => {
+  // Native listeners: inside an editable editor (the agent and chat
+  // composers) the shell stops click propagation before Solid's delegated
+  // handlers run, which left the chip inert there.
+  const navHandlers = useNativeSplitNavigationHandler<HTMLSpanElement>((e) => {
     e.stopPropagation();
     const i = item();
     if (
