@@ -278,7 +278,8 @@ an incoming selection must not mark the Home item done or edit the thread root.
 Press `Escape` to clear selection; the parent Home shortcut is then available
 again. Typing `e` in the composer or inline editor should still enter text.
 Returning through split navigation restores the saved message position and expanded
-threads. Switching channel tabs currently opens Messages at latest. The `Scroll to bottom` control appears when scrolling down through history;
+threads. Switching channel tabs and returning restores the Messages position,
+expanded threads, and pending reply from when the tab was left. The `Scroll to bottom` control appears when scrolling down through history;
 it returns to the latest page even after opening a link into old history.
 The jump waits for that page to reach the rendered list.
 A newer message navigation cancels a pending jump to latest. Scrolling manually
@@ -568,6 +569,13 @@ appears while a call is in progress. `Ask Macro` opens a new chat pane with the 
 already @mentioned as context (see ai-chat.md). On mobile it lives in the channel title's
 `...` drawer instead. Clicking the radio input can time out — click the adjacent label text
 instead.
+
+In the Chat workspace — and wherever a channel opens inline inside another
+view's detail stack (a channel mention followed from the email view, say) — the
+conversation renders an inline detail whose top bar holds the channel avatar
+and name, the same tab strip, live viewer avatars, and the `Call` and
+`Ask Macro` buttons. The title `...` menu (rename, channel picture) is not
+offered there; open the channel as a split (shift-click a rail row) to use it.
 
 `Calls` tab: recordings, transcriptions, and summaries for this channel. Click a
 row to open the call. The search field above the list matches call names and
