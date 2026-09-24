@@ -32,6 +32,7 @@ const operationMocks = vi.hoisted(() => {
     },
   });
   return {
+    archive: vi.fn(async (): Promise<'committed' | 'queued'> => 'committed'),
     bulkMarkNotificationsAsDone: vi.fn(async () => {}),
     bulkMarkNotificationsAsUndone: vi.fn(async () => {}),
     cancelQueries: vi.fn(async () => {}),
@@ -39,7 +40,9 @@ const operationMocks = vi.hoisted(() => {
       isErr: () => false,
       value: undefined,
     })),
-    invalidateQueries: vi.fn(async () => {}),
+    invalidateQueries: vi.fn(
+      async (_options: { queryKey?: readonly unknown[] }) => {}
+    ),
     invalidateRemindersById: vi.fn(),
     invalidateSoupEntity: vi.fn(async () => {}),
     setReminderCompleted: vi.fn(async () => {}),
@@ -60,6 +63,10 @@ vi.mock('@service-connection/websocket', () => ({
   state: () => 'closed',
   createConnectionBlockWebsocketEffect: vi.fn(),
   createConnectionWebsocketEffect: vi.fn(),
+}));
+vi.mock('@queries/email/integration', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@queries/email/integration')>()),
+  archiveEmailThread: operationMocks.archive,
 }));
 vi.mock('@queries/client', () => ({
   queryClient: {
@@ -108,10 +115,11 @@ vi.mock('@core/constant/featureFlags', async (importOriginal) => {
 
 import { setGlobalSplitManager } from '@app/signal/splitLayout';
 import type { SplitManager } from '@components/app/split-layout/layoutManager';
-import type { ChannelEntityTarget, EntityData } from '@entity';
+import { type ChannelEntityTarget, type EntityData, queryKeys } from '@entity';
 import type { NotificationSource, UnifiedNotification } from '@notifications';
 import {
   executeMarkEntitiesDone,
+  executeMarkEntitiesUndone,
   getChannelEntityTarget,
   getDocumentCommentTarget,
   getRowClickFallbackLocation,
@@ -326,6 +334,45 @@ describe('resolveMarkEntitiesDoneVariables', () => {
 });
 
 describe('mark-done orchestration', () => {
+  const invalidatedEmailList = () =>
+    operationMocks.invalidateQueries.mock.calls.some(
+      ([options]) =>
+        JSON.stringify(options.queryKey) === JSON.stringify(queryKeys.all.email)
+    );
+
+  for (const [label, execute] of [
+    ['Done', executeMarkEntitiesDone],
+    ['Undo', executeMarkEntitiesUndone],
+  ] as const) {
+    it(`${label} does not invalidate REST email caches while the archive is queued`, async () => {
+      operationMocks.archive.mockResolvedValueOnce('queued');
+      await execute({ emailIds: ['queued'], notificationIds: [] });
+      expect(invalidatedEmailList()).toBe(false);
+      expect(operationMocks.invalidateSoupEntity).not.toHaveBeenCalled();
+    });
+    it(`${label} still reconciles committed and rejected archive writes`, async () => {
+      await execute({ emailIds: ['committed'], notificationIds: [] });
+      expect(invalidatedEmailList()).toBe(true);
+      operationMocks.invalidateQueries.mockClear();
+      operationMocks.archive.mockRejectedValueOnce(new Error('archive failed'));
+      await expect(
+        execute({ emailIds: ['failed'], notificationIds: [] })
+      ).rejects.toThrow('archive failed');
+      expect(invalidatedEmailList()).toBe(true);
+      expect(operationMocks.invalidateSoupEntity).toHaveBeenCalledWith(
+        'failed'
+      );
+    });
+    it(`${label} defers shared-list refresh for mixed committed/queued writes`, async () => {
+      operationMocks.archive
+        .mockResolvedValueOnce('committed')
+        .mockResolvedValueOnce('queued');
+      await execute({ emailIds: ['committed', 'queued'], notificationIds: [] });
+      expect(invalidatedEmailList()).toBe(false);
+      expect(operationMocks.invalidateSoupEntity).not.toHaveBeenCalled();
+    });
+  }
+
   it('executes entity notification writes directly and returns exact ids', async () => {
     operationMocks.updateNotificationsForEntities.mockResolvedValueOnce([
       { id: 'entity-notification' },

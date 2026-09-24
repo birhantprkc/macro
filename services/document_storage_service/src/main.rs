@@ -444,11 +444,6 @@ async fn run() -> anyhow::Result<()> {
     );
 
     // Create the channel list service used by soup.
-    let channel_service_for_soup = ChannelListServiceImpl::new(
-        PgChannelsRepo::new(readonly_db.clone()),
-        PgChannelsRepo::new(readonly_db.clone()),
-        frecency_storage.clone(),
-    );
     // Create the legacy channel list router state for routes mounted under /comms.
     let channel_list_state = ChannelListRouterState::new(
         ChannelListServiceImpl::new(
@@ -947,12 +942,6 @@ async fn run() -> anyhow::Result<()> {
         config.queue_wait_time_seconds,
     );
 
-    let call_record_query_service = call::domain::service::CallRecordQueryServiceImpl::new(
-        PgCallRepo::new(readonly_db.clone()),
-    );
-    let foreign_entity_service_for_soup =
-        ForeignEntityServiceImpl::new(PgForeignEntityRepo::new(readonly_db.clone()));
-
     let sqs_client = Arc::new(sqs_client);
     let conn_gateway_client = Arc::new(conn_gateway_client);
 
@@ -1221,15 +1210,25 @@ async fn run() -> anyhow::Result<()> {
         config.document_permission_jwt.as_ref().to_string(),
     );
 
+    // Keep the replica-backed Soup reader alongside the primary-backed email
+    // writer in SoupRouterState. REST, GraphQL lists, and realtime hydration
+    // share this reader; only email mutations and their reply loader use the
+    // writer service, so normal list traffic never switches to the primary.
     let soup_service = Arc::new(
         SoupImpl::new(
             PgSoupRepo::new(readonly_pool::ReadOnlyPool(readonly_db.clone())),
             frecency_service,
             readonly_email_service,
-            channel_service_for_soup,
-            call_record_query_service,
+            ChannelListServiceImpl::new(
+                PgChannelsRepo::new(readonly_db.clone()),
+                PgChannelsRepo::new(readonly_db.clone()),
+                frecency_storage.clone(),
+            ),
+            call::domain::service::CallRecordQueryServiceImpl::new(PgCallRepo::new(
+                readonly_db.clone(),
+            )),
             crm_service.clone(),
-            foreign_entity_service_for_soup,
+            ForeignEntityServiceImpl::new(PgForeignEntityRepo::new(readonly_db.clone())),
             reminders_service.clone(),
         )
         .with_agent_branches(agent_changes::outbound::postgres::PgChangesetRepo::new(

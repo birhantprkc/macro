@@ -304,6 +304,17 @@ on opening, and is omitted when no tags exist. **f** opens the filter menu.
 
 ### Read state and trash
 
+In the Email view, Status filters discovery on the server **before pagination**,
+for both the mailbox list and service-backed search. With Unread selected, opening
+or marking an admitted row read keeps its position across refreshes. Separate
+lookups, bounded to 100 already-admitted thread IDs each, omit only the read filter;
+they still enforce the tab, inbox, other facets, and (for search) the search text.
+A snapshot bridges a pending lookup, but a confirmed non-match removes the row,
+so archive/trash cannot be resurrected by retention. Changing the search text,
+filters, tab, inbox, or user resets admission. Check that unread mail is discovered
+even after 100 newer read threads, then verify focus through Mark Read and refresh
+in both list and search, including with more than one loaded page.
+
 With GraphQL Soup enabled, **Mark read/unread** updates the normalized email row
 optimistically. Permanent server errors roll it back; retryable transport failures
 can leave the action in the durable queue. Mark unread sends only the thread ID;
@@ -315,7 +326,29 @@ active flat and grouped lists, including loaded continuation pages. Once replay
 commits (even after a reload), those queries refresh from the server; they should
 not refetch over the optimistic state merely because a write was queued. Trash
 and its Undo refresh mounted GraphQL lists after the server operation finishes.
-The GraphQL-disabled REST path is unchanged.
+The GraphQL-disabled REST path is unchanged. With GraphQL enabled, archive-based
+Mark Done, Mark Not Done, and Undo/Redo use `setEmailThreadArchived`: `inboxVisible`
+updates optimistically in the normalized cache, and each reversal is a distinct
+ordered queue entry. The server resolves the thread's owning/delegated inbox;
+no client INBOX-label lookup is needed. Confirmed writes revalidate mounted lists,
+including continuation pages; queued writes retain those descriptors for replay
+without refetching over optimism. Callers preserve the queued disposition and
+skip REST/TanStack email invalidations as well, including Done/Undo batches and
+thread archive replay. Committed writes and failed non-queued batches still
+reconcile. Permanent failures roll back the failed intent.
+Check Signal/Noise removal and All's done indicator, then Undo/Redo, including an
+offline action followed by reconnect. Sent-only threads cannot be unarchived.
+
+The service retains both replica-backed Soup reads and a primary-backed email
+writer. Email mutations and their uncached reply reloads use the primary; ordinary
+GraphQL/REST lists, direct Soup lookups, and realtime Soup hydration use the replica.
+A mutation reply is fresh, but subsequent list refetches are eventually consistent
+and can still return replica-stale read/archive state. Test that boundary separately
+from mutation reply correctness. A post-commit reply-load failure is retryable;
+it must not discard the queued intent. Deploy
+the backend schema containing `setEmailThreadArchived` before this client.
+Browser WASM and native cache builds must include the regenerated schema metadata;
+native offline archive support therefore requires a full app build, not just OTA.
 
 ### Cached Mail filtering
 
