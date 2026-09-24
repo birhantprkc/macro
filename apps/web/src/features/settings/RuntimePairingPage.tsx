@@ -1,13 +1,15 @@
 import { toast } from '@core/component/Toast/Toast';
 import { ThrownResultError } from '@core/util/result';
+import ArrowLeftIcon from '@phosphor/arrow-left.svg';
 import {
   useApproveHarnessPairingMutation,
   useHarnessPairingQuery,
 } from '@queries/harnesses/harnesses';
 import { useCurrentTeamQuery } from '@queries/team/teams';
-import { Button, Checkbox, Dialog, Panel } from '@ui';
+import { Button, Checkbox } from '@ui';
 import { createEffect, createSignal, Match, Show, Switch } from 'solid-js';
-import { ChoiceRow } from './primitives';
+import { RuntimeSetupSteps } from './components/runtime-setup-steps';
+import { ChoiceRow, SettingsPage } from './primitives';
 
 const PAIRING_ERROR_FALLBACK =
   'This pairing code is invalid, expired, or already claimed.';
@@ -26,11 +28,11 @@ function expiresInMinutes(expiresAt: string): number {
 }
 
 /**
- * Dialog that walks the user through approving a macrod pairing request:
+ * Page that walks the user through approving a macrod pairing request:
  * enter the printed code, review the request, and approve it as a private or
- * team harness.
+ * team runtime.
  */
-export function HarnessPairingDialog(props: {
+export function RuntimePairingPage(props: {
   initialCode?: string;
   onClose: () => void;
 }) {
@@ -51,7 +53,8 @@ export function HarnessPairingDialog(props: {
   const pairingQuery = useHarnessPairingQuery(committedCode);
   const approveMutation = useApproveHarnessPairingMutation();
   const currentTeamQuery = useCurrentTeamQuery();
-  const currentTeamId = () => currentTeamQuery.data?.team.id;
+  const currentTeamId = () =>
+    currentTeamQuery.isSuccess ? currentTeamQuery.data?.team.id : undefined;
   const canShareWithTeam = () => currentTeamId() !== undefined;
   const pairingData = () =>
     pairingQuery.isSuccess ? pairingQuery.data : undefined;
@@ -120,165 +123,169 @@ export function HarnessPairingDialog(props: {
         teamId: share() === 'Team' ? currentTeamId() : undefined,
       });
       setApproved(true);
-      toast.success('Harness connected');
+      toast.success('Runtime connected');
     } catch (error) {
       setApproveError(failureMessage(error, PAIRING_ERROR_FALLBACK));
     }
   };
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) =>
-        !open && !approveMutation.isPending && props.onClose()
+    <SettingsPage
+      title={approved() ? 'Runtime connected' : 'New runtime'}
+      showTitleInSheet
+      description="Connect an agent running on your own machine."
+      actions={
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={approveMutation.isPending}
+          onClick={props.onClose}
+        >
+          <ArrowLeftIcon />
+          Back
+        </Button>
       }
-      position="center"
-      visibleScrim
-      class="w-[min(480px,calc(100vw-16px))]"
     >
-      <Panel depth={2} class="max-h-[88vh] rounded-xl text-ink">
-        <Panel.Header class="px-5 py-3">
-          <Dialog.Title class="text-sm font-semibold">
-            {approved() ? 'Harness connected' : 'Connect a harness'}
-          </Dialog.Title>
-        </Panel.Header>
-        <Panel.Body class="overflow-y-auto p-5">
-          <Switch>
-            <Match when={approved()}>
-              <p class="text-sm leading-5 text-ink-muted">
-                Harness connected. macrod will finish pairing automatically.
-              </p>
-            </Match>
+      <section
+        aria-label="New runtime"
+        class="@container rounded-xl border border-edge-muted bg-surface-2 p-6"
+      >
+        <Switch>
+          <Match when={approved()}>
+            <p class="text-sm leading-5 text-ink-muted">
+              Runtime connected. macrod will finish pairing automatically.
+            </p>
+          </Match>
 
-            <Match when={errorMessage()}>
-              {(message) => (
-                <div class="flex flex-col gap-3">
-                  <p class="text-sm leading-5 text-negative">{message()}</p>
-                  <div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={tryAnotherCode}
-                    >
-                      Try another code
-                    </Button>
-                  </div>
+          <Match when={errorMessage()}>
+            {(message) => (
+              <div class="flex flex-col gap-3">
+                <p class="text-sm leading-5 text-negative">{message()}</p>
+                <div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={tryAnotherCode}
+                  >
+                    Try another code
+                  </Button>
                 </div>
-              )}
-            </Match>
+              </div>
+            )}
+          </Match>
 
-            <Match when={pairingData()}>
-              {(pairing) => (
-                <div class="flex flex-col gap-4">
-                  <div class="flex flex-col gap-1.5">
-                    <div class="rounded-lg border border-edge-muted bg-ink/[0.025] px-3 py-3 text-center font-mono text-2xl tracking-[0.2em] text-ink">
-                      {pairing().code}
-                    </div>
-                    <p class="text-xs text-ink-muted">
-                      Confirm this matches the code macrod printed.
-                    </p>
+          <Match when={pairingData()}>
+            {(pairing) => (
+              <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-1.5">
+                  <div class="rounded-lg border border-edge-muted bg-ink/[0.025] px-3 py-3 text-center font-mono text-2xl tracking-[0.2em] text-ink">
+                    {pairing().code}
                   </div>
-
-                  <div class="flex flex-col gap-0.5 text-xs text-ink-muted">
-                    <span>
-                      Requested name:{' '}
-                      <span class="text-ink">{pairing().requested_name}</span>
-                    </span>
-                    <Show when={pairing().host}>
-                      {(host) => (
-                        <span>
-                          Host: <span class="text-ink">{host()}</span>
-                        </span>
-                      )}
-                    </Show>
-                    <span>
-                      Expires in {expiresInMinutes(pairing().expires_at)}{' '}
-                      minutes
-                    </span>
-                  </div>
-
-                  <label class="flex flex-col gap-1.5">
-                    <span class="text-xs font-medium text-ink">Name</span>
-                    <input
-                      class="settings-input w-full"
-                      value={name()}
-                      onInput={(event) => {
-                        setNameEdited(true);
-                        setName(event.currentTarget.value);
-                      }}
-                    />
-                  </label>
-
-                  <fieldset class="grid grid-cols-2 gap-2 mobile:grid-cols-1">
-                    <legend class="sr-only">Share</legend>
-                    <ChoiceRow
-                      name="harness-share"
-                      value="private"
-                      checked={share() === 'Private'}
-                      title="Private"
-                      description="Only you can run agents on this harness."
-                      onChange={() => {
-                        setShareEdited(true);
-                        setShare('Private');
-                      }}
-                    />
-                    <ChoiceRow
-                      name="harness-share"
-                      value="team"
-                      checked={share() === 'Team'}
-                      title="Team"
-                      description={
-                        canShareWithTeam()
-                          ? 'Your team can run agents on this harness.'
-                          : 'Create or join a team before sharing harnesses.'
-                      }
-                      disabled={!canShareWithTeam()}
-                      onChange={() => {
-                        setShareEdited(true);
-                        setShare('Team');
-                      }}
-                    />
-                  </fieldset>
-                  <div class="flex flex-col gap-2">
-                    <Checkbox
-                      class="flex items-center gap-3 text-sm"
-                      checked={allowPermissionBypass()}
-                      disabled={
-                        pairing().requested_allow_permission_bypass === false
-                      }
-                      onChange={(allowed) => {
-                        setPermissionBypassEdited(true);
-                        setAllowPermissionBypass(allowed);
-                      }}
-                    >
-                      <Checkbox.Control />
-                      <Checkbox.Label>
-                        Allow bypassing permission requests
-                      </Checkbox.Label>
-                    </Checkbox>
-                    <p class="text-xs text-ink-muted">
-                      {pairing().requested_allow_permission_bypass === false
-                        ? 'This daemon requires permission prompts. Change its setting and pair again to allow bypass.'
-                        : 'When off, every agent on this harness must ask for permission.'}
-                    </p>
-                    <Show when={allowPermissionBypass()}>
-                      <p class="text-xs text-negative" role="alert">
-                        Agents can run commands and edit files on this machine
-                        without approval. Only enable this if you trust everyone
-                        who can create agents on this harness.
-                      </p>
-                    </Show>
-                  </div>
+                  <p class="text-xs text-ink-muted">
+                    Confirm this matches the code macrod printed.
+                  </p>
                 </div>
-              )}
-            </Match>
 
-            <Match when={committedCode()}>
-              <p class="text-sm text-ink-muted">Looking up pairing code…</p>
-            </Match>
+                <div class="flex flex-col gap-0.5 text-xs text-ink-muted">
+                  <span>
+                    Requested name:{' '}
+                    <span class="text-ink">{pairing().requested_name}</span>
+                  </span>
+                  <Show when={pairing().host}>
+                    {(host) => (
+                      <span>
+                        Host: <span class="text-ink">{host()}</span>
+                      </span>
+                    )}
+                  </Show>
+                  <span>
+                    Expires in {expiresInMinutes(pairing().expires_at)} minutes
+                  </span>
+                </div>
 
-            <Match when>
+                <label class="flex flex-col gap-1.5">
+                  <span class="text-xs font-medium text-ink">Name</span>
+                  <input
+                    class="settings-input w-full"
+                    value={name()}
+                    onInput={(event) => {
+                      setNameEdited(true);
+                      setName(event.currentTarget.value);
+                    }}
+                  />
+                </label>
+
+                <fieldset class="grid grid-cols-1 gap-2 @min-[440px]:grid-cols-2">
+                  <legend class="sr-only">Share</legend>
+                  <ChoiceRow
+                    name="harness-share"
+                    value="private"
+                    checked={share() === 'Private'}
+                    title="Private"
+                    description="Only you can run agents on this runtime."
+                    onChange={() => {
+                      setShareEdited(true);
+                      setShare('Private');
+                    }}
+                  />
+                  <ChoiceRow
+                    name="harness-share"
+                    value="team"
+                    checked={share() === 'Team'}
+                    title="Team"
+                    description={
+                      canShareWithTeam()
+                        ? 'Your team can run agents on this runtime.'
+                        : 'Create or join a team before sharing runtimes.'
+                    }
+                    disabled={!canShareWithTeam()}
+                    onChange={() => {
+                      setShareEdited(true);
+                      setShare('Team');
+                    }}
+                  />
+                </fieldset>
+                <div class="flex flex-col gap-2">
+                  <Checkbox
+                    class="flex items-center gap-3 text-sm"
+                    checked={allowPermissionBypass()}
+                    disabled={
+                      pairing().requested_allow_permission_bypass === false
+                    }
+                    onChange={(allowed) => {
+                      setPermissionBypassEdited(true);
+                      setAllowPermissionBypass(allowed);
+                    }}
+                  >
+                    <Checkbox.Control />
+                    <Checkbox.Label>
+                      Allow bypassing permission requests
+                    </Checkbox.Label>
+                  </Checkbox>
+                  <p class="text-xs text-ink-muted">
+                    {pairing().requested_allow_permission_bypass === false
+                      ? 'This daemon requires permission prompts. Change its setting and pair again to allow bypass.'
+                      : 'When off, every agent on this runtime must ask for permission.'}
+                  </p>
+                  <Show when={allowPermissionBypass()}>
+                    <p class="text-xs text-negative" role="alert">
+                      Agents can run commands and edit files on this machine
+                      without approval. Only enable this if you trust everyone
+                      who can create agents on this runtime.
+                    </p>
+                  </Show>
+                </div>
+              </div>
+            )}
+          </Match>
+
+          <Match when={committedCode()}>
+            <p class="text-sm text-ink-muted">Looking up pairing code…</p>
+          </Match>
+
+          <Match when>
+            <RuntimeSetupSteps>
               <div class="flex flex-col gap-1.5">
                 <label
                   for="harness-pairing-code"
@@ -289,8 +296,8 @@ export function HarnessPairingDialog(props: {
                 <div class="flex min-w-0 items-center gap-2 rounded-lg border border-edge-muted bg-ink/[0.025] px-3 py-2">
                   <input
                     id="harness-pairing-code"
-                    autofocus
                     autocomplete="off"
+                    aria-describedby="harness-pairing-code-help"
                     spellcheck={false}
                     class="min-w-0 flex-1 bg-transparent font-mono text-sm uppercase tracking-widest text-ink outline-none"
                     placeholder="KX7M-4QHD"
@@ -303,14 +310,18 @@ export function HarnessPairingDialog(props: {
                     }}
                   />
                 </div>
-                <p class="text-xs text-ink-extra-muted">
-                  Run macrod on your computer and enter the code it prints.
+                <p
+                  id="harness-pairing-code-help"
+                  class="text-xs text-ink-extra-muted"
+                >
+                  Already configured? Press <kbd>p</kbd> in macrod to get a new
+                  code.
                 </p>
               </div>
-            </Match>
-          </Switch>
-        </Panel.Body>
-        <Panel.Footer class="justify-end gap-2 px-5 py-3">
+            </RuntimeSetupSteps>
+          </Match>
+        </Switch>
+        <div class="mt-6 flex justify-end gap-2 border-t border-edge-muted pt-4">
           <Switch>
             <Match when={approved()}>
               <Button
@@ -382,8 +393,8 @@ export function HarnessPairingDialog(props: {
               </Button>
             </Match>
           </Switch>
-        </Panel.Footer>
-      </Panel>
-    </Dialog>
+        </div>
+      </section>
+    </SettingsPage>
   );
 }
