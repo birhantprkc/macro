@@ -326,9 +326,12 @@ records `path` (`catch_up` or `full`) and `reason`
 ## Chat navigation rail
 
 Following a channel mention or browser notification for the conversation already
-shown in Chat activates that workspace and jumps to the targeted message or reply. It keeps
-the existing preview and does not show a **Content already open** toast. The
-same applies to a channel preview in Home; a closed channel opens normally.
+shown in Chat activates that workspace and jumps to the targeted message or reply.
+It keeps the shared channel detail mounted and does not show a **Content already open**
+toast. The same applies to a channel preview in Home; a closed channel opens normally.
+In Chat, the detail uses the shared channel top bar with Messages, Attachments,
+Participants, and Calls tabs (when calls are enabled). A message target switches
+back to Messages; changing unread notifications does not restart navigation.
 
 The title bar's **Hide navigation** control hides the whole rail. Reopen it with
 **Show navigation** (the hamburger) immediately before the conversation title,
@@ -342,7 +345,7 @@ On desktop, the Chat rail has `All` and `Recent` tabs. All contains an
 optional `Favorites` section and the
 independently paginated `Channels` and `DMs` sections. Favorites appears when
 the user has channel favorites and only lists channels. Channel favorites open
-in the channel preview. Shift-clicking a favorite, channel, or DM opens that
+in the shared channel detail. Shift-clicking a favorite, channel, or DM opens that
 conversation in a new split instead.
 
 ### Channel labels
