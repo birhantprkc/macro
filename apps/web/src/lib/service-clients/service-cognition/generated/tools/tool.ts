@@ -220,6 +220,10 @@ type ToolParserMap = {
     call: types.SendChannelMessage;
     response: types.SendChannelMessageResponse;
   };
+  SendConfirmedEmail: {
+    call: types.SendConfirmedEmail;
+    response: types.SendEmailResponse;
+  };
   SendEmail: {
     call: types.SendEmail;
     response: types.UserToolResponseForSendEmailResponse;
@@ -491,6 +495,10 @@ const toolParserMap = {
     call: schemas.SendChannelMessage,
     response: schemas.SendChannelMessageResponse,
   },
+  SendConfirmedEmail: {
+    call: schemas.SendConfirmedEmail,
+    response: schemas.SendEmailResponse,
+  },
   SendEmail: {
     call: schemas.SendEmail,
     response: schemas.UserToolResponseForSendEmailResponse,
@@ -748,6 +756,10 @@ type ToolDataMap = {
   SendChannelMessage: {
     call: types.SendChannelMessage;
     response: types.SendChannelMessageResponse;
+  };
+  SendConfirmedEmail: {
+    call: types.SendConfirmedEmail;
+    response: types.SendEmailResponse;
   };
   SendEmail: {
     call: types.SendEmail;
