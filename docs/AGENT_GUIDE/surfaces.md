@@ -96,6 +96,18 @@ loading settles, including when the list itself uses REST (notified-at sorting).
 Email alone is not sufficient verification: its inbox membership does not require
 the global notification feed.
 
+Check live Home recency with two accounts: leave the recipient on Home without
+opening the conversation, then send a DM from the other account. The row should
+move into **Last few minutes** and show unread without reloading, including when
+notifications use GraphQL but Home's notified-at list uses REST. Read the DM,
+return to Home, and repeat; also check a row previously marked done and a thread
+reply. Delay the Home list response while allowing single-entity hydration to
+finish: hydration must not cancel the list refresh or leave an old notification
+timestamp. Older in-flight snapshots must not move the delivered row backward.
+Also test a stale response that entirely omits a just-restored, previously done
+row: the row must stay visible. Marking it done again must override that restore,
+and other filter scopes must not inherit the retained membership.
+
 GraphQL-attached notification rows share the global feed's local seen/done
 overrides: Mark Done and Undo reflect local intent without waiting for an older
 cached notification snapshot to be replaced. These display overrides do not turn
