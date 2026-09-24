@@ -1,5 +1,11 @@
 # Other Surfaces
 
+## Top bars
+
+Right-aligned split-header actions (including Calendar's New event and Channel's
+Call and Ask Macro) are borderless with a rounded-xl background on hover. Channel
+header tabs use fully rounded tracks and selected pills.
+
 ## User cards
 
 Avatar and user-mention cards open on hover on pointer devices and as a bottom

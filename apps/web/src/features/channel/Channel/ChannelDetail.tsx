@@ -123,7 +123,7 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
   };
 
   return (
-    <div class="ml-auto flex shrink-0 items-center gap-2">
+    <div class="header-actions ml-auto flex shrink-0 items-center gap-2">
       <ChannelLiveIndicators channelId={props.channelId} />
       <Show when={ENABLE_CALLS && !call.isInThisChannel()}>
         <ChannelCallButton channelId={props.channelId} />
