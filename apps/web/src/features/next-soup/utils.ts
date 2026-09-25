@@ -13,7 +13,7 @@ import {
   CALENDAR_VIEW_ID,
   type CalendarViewTarget,
 } from '@app/features/calendar-view/types';
-import { driveDocumentFromContent } from '@app/features/drive-view/primitives/drive-route';
+import { driveHostedContent } from '@app/features/drive-view/drive-hosted-content';
 import { URL_PARAMS as EMAIL_PARAMS } from '@app/features/email-thread/core/location';
 import { withListNavigationSource } from '@app/features/soup/collection/list-navigation-source';
 import {
@@ -21,6 +21,7 @@ import {
   getEntityNotifications,
   scopeChannelNotificationsForEntity,
 } from '@app/features/soup/entity-notifications';
+import { tasksHostedContent } from '@app/features/tasks-view/tasks-hosted-content';
 import { isRecord } from '@app/lib/split-router/utils';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { CALENDAR_BLOCK_ID } from '@block-calendar/types';
@@ -38,7 +39,6 @@ import type {
   SplitContent,
   SplitHandle,
 } from '@components/app/split-layout/layoutManager';
-import { driveSplitContent } from '@components/app/split-layout/split-router/legacy-route';
 import { toast } from '@core/component/Toast/Toast';
 import {
   fileTypeToBlockName,
@@ -712,14 +712,16 @@ export const openEntityInSplitFromUnifiedList = async (
 
   if (isGithubPrEntity(entity)) {
     if (USE_MACRO_PR_SUMMARY_BLOCK) {
+      const content = { type: 'pr' as const, id: entity.id };
       const result = splitManager.openWithSplit(
-        { type: 'pr', id: entity.id },
+        tasksHostedContent(content) ?? content,
         {
           referredFrom: options.referredFrom,
           activate: true,
           preferNewSplit: openInNewSplit,
           handle: splitHandle,
           mergeHistory,
+          allowDuplicate: true,
         }
       );
       if (result.status === 'reused' && result.owner !== result.sourceOwner) {
@@ -798,18 +800,14 @@ export const openEntityInSplitFromUnifiedList = async (
       : undefined;
   const referredFrom = options.referredFrom ?? sourceListView;
 
-  // Documents are hosted by Drive. Construct the canonical routed content
-  // before opening the split so the layout manager does not mount a legacy
-  // block and immediately replace it during router feedback.
-  // A comment target opens the document block itself, exactly like a copied
-  // comment link, because Drive-hosted documents cannot take a comment target.
-  const driveDocument =
-    !isTouchDevice() && !commentParams
-      ? driveDocumentFromContent(content)
-      : undefined;
-  let splitContent: SplitContent = driveDocument
-    ? driveSplitContent({ kind: 'tab', tab: 'owned' }, driveDocument)
-    : { ...content, params };
+  // Construct hosted content before opening the split so details do not mount
+  // legacy blocks. Comment targets keep their document block.
+  const hostedContent =
+    tasksHostedContent(content) ??
+    driveHostedContent(content, {
+      allowDocuments: !isTouchDevice() && !commentParams,
+    });
+  let splitContent: SplitContent = hostedContent ?? { ...content, params };
   const callTranscriptId =
     entity.type === 'call' && location?.type === 'call_record'
       ? location.transcriptId
@@ -840,11 +838,8 @@ export const openEntityInSplitFromUnifiedList = async (
     preferNewSplit: openInNewSplit,
     handle: splitHandle,
     mergeHistory,
-    // Each routed document has a distinct Drive location even though all
-    // Drive splits share the same component identity.
-    allowDuplicate:
-      allowDuplicate ||
-      (splitContent.type === 'component' && splitContent.id === 'documents'),
+    // Hosted details have distinct routes even when they share a component identity.
+    allowDuplicate: allowDuplicate || hostedContent !== undefined,
     reopen:
       entity.type === 'channel' && !location && openChannelAtLatest
         ? 'latest'
