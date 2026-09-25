@@ -22,6 +22,7 @@ import {
   type SplitRouterMiddlewareResult,
 } from '@app/lib/split-router';
 import { replaceSplitSearchParams } from '@app/lib/split-router/search';
+import { URL_PARAMS as CALL_URL_PARAMS } from '@block-call/constants';
 import { URL_PARAMS as CHANNEL_URL_PARAMS } from '@block-channel/constants';
 import { URL_PARAMS as MD_URL_PARAMS } from '@block-md/constants';
 import { URL_PARAMS as PDF_URL_PARAMS } from '@block-pdf/constants';
@@ -169,6 +170,10 @@ function migrateLegacySearch({
     .with(CALENDAR_ROUTE_ID, () => ({
       namespace: CALENDAR_SEARCH_NAMESPACE,
       fields: [['eventId', 'eventId']] as const,
+    }))
+    .with('call-detail', () => ({
+      namespace: 'call-detail',
+      fields: [[CALL_URL_PARAMS.transcriptId, 'transcriptId']] as const,
     }))
     .otherwise(() => undefined);
 
