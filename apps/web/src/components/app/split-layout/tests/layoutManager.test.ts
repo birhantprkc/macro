@@ -7,13 +7,18 @@ import {
   emailSplitRoute,
   emailThreadRoute,
 } from '@app/features/email-view/route';
+import { reviewsHostedContent } from '@app/features/reviews-view/reviews-hosted-content';
+import { reviewsSplitRoute } from '@app/features/reviews-view/route';
 import {
   getListNavigationSource,
   listNavigationSourceId,
   registerListNavigationSource,
   withListNavigationSource,
 } from '@app/features/soup/collection/list-navigation-source';
-import { taskDetailRoute } from '@app/features/tasks-view/route';
+import {
+  taskDetailRoute,
+  tasksSplitRoute,
+} from '@app/features/tasks-view/route';
 import { createMemorySplitRouterLocation } from '@app/lib/split-router/integrations/memory';
 import { createSplitRouter } from '@app/lib/split-router/router';
 import { createRoutesManifest } from '@app/lib/split-router/routes';
@@ -36,12 +41,12 @@ import { createAppSplitRouterMiddleware } from '../split-router/app-middleware';
 import { appSplitRoutes } from '../split-router/app-routes';
 import { createAppSplitRouterLayout } from '../splitRouterLayout';
 
-// Settings navigation has its own route tests; avoid loading it through unrelated views.
-vi.mock('@core/constant/settingsSplitUrl', () => ({
-  appendSettingsSplitToUrl: vi.fn(),
-  settingsTabSlugFromUrl: vi.fn(),
-  stripSettingsSplitFromUrl: vi.fn(),
+// Settings UI imports the app route registry and is unrelated to layout behavior.
+vi.mock('@core/constant/SettingsState', () => ({
+  useSettingsState: vi.fn(),
 }));
+
+// The route graph imports websocket clients; jsdom cannot open their sockets.
 vi.mock('@service-storage/websocket', () => ({
   storageWS: { reconnectIfDisconnected: vi.fn() },
   createWebSocketJob: vi.fn(),
@@ -895,59 +900,125 @@ describe('layoutManager', () => {
       }
     );
 
-    it('opens PR details in Tasks and redirects legacy PR links', async () => {
-      for (const path of ['/pr/pr-1', '/tasks/pr/pr-1']) {
+    it('opens the Reviews list on its own component route', async () => {
+      const { manager, location, router, dispose } = ingressRouter('/reviews');
+      await router.settled();
+      expect(manager.splits()[0].content).toMatchObject({
+        type: 'component',
+        id: 'reviews',
+      });
+      expect(manager.splits()[0].mount.kind).toBe('component');
+      expect(router.route(manager.splits()[0].id)?.matches[0]?.id).toBe(
+        'view-reviews'
+      );
+      expect(location.read().pathname).toBe('/reviews');
+      router.dispose();
+      dispose();
+    });
+    it('navigates from Tasks to Reviews and back in the same pane', async () => {
+      const { manager, location, router, dispose } = ingressRouter('/tasks');
+      await router.settled();
+      const splitId = manager.splits()[0].id;
+
+      router.navigate(splitId, { route: reviewsSplitRoute, params: {} });
+      await router.settled();
+      expect(manager.splits()[0].id).toBe(splitId);
+      expect(manager.splits()[0].content).toMatchObject({
+        type: 'component',
+        id: 'reviews',
+      });
+      expect(location.read().pathname).toBe('/reviews');
+
+      router.navigate(splitId, { route: tasksSplitRoute, params: {} });
+      await router.settled();
+      expect(manager.splits()[0].id).toBe(splitId);
+      expect(manager.splits()[0].content).toMatchObject({
+        type: 'component',
+        id: 'tasks',
+      });
+      expect(location.read().pathname).toBe('/tasks');
+      router.dispose();
+      dispose();
+    });
+    it('opens PR details in Reviews and redirects older PR links', async () => {
+      for (const path of ['/pr/pr-1', '/reviews/pr/pr-1']) {
         const { manager, location, router, dispose } = ingressRouter(path);
         await router.settled();
         const split = manager.splits()[0];
         expect(split.content).toMatchObject({
           type: 'component',
-          id: 'tasks',
+          id: 'reviews',
         });
         expect(split.mount.kind).toBe('component');
         expect(router.route(split.id)?.matches).toEqual([
-          { id: 'view-tasks', params: {} },
-          { id: 'tasks-pr', params: { foreignEntityId: 'pr-1' } },
+          { id: 'view-reviews', params: {} },
+          { id: 'reviews-pr', params: { foreignEntityId: 'pr-1' } },
         ]);
-        expect(location.read().pathname).toBe('/tasks/pr/pr-1');
+        expect(location.read().pathname).toBe('/reviews/pr/pr-1');
         router.dispose();
         dispose();
       }
     });
 
-    it('keeps PR details in Tasks on touch', async () => {
+    it('opens a Reviews PR in a new split without reusing the Reviews list', async () => {
+      const { manager, router, dispose } = ingressRouter('/reviews');
+      await router.settled();
+      const listSplit = manager.splits()[0];
+      const content = reviewsHostedContent({ type: 'pr', id: 'pr-1' });
+      if (!content) throw new Error('Expected hosted PR content');
+
+      const opened = manager.openWithSplit(content, {
+        handle: manager.getSplit(listSplit.id),
+        preferNewSplit: true,
+        allowDuplicate: true,
+      });
+      await router.settled();
+
+      expect(opened.status).toBe('opened');
+      expect(manager.splits()).toHaveLength(2);
+      expect(manager.splits()[0].id).toBe(listSplit.id);
+      if (opened.status === 'opened') {
+        expect(router.route(opened.split.id)?.matches.at(-1)).toEqual({
+          id: 'reviews-pr',
+          params: { foreignEntityId: 'pr-1' },
+        });
+      }
+      router.dispose();
+      dispose();
+    });
+    it('keeps PR details in Reviews on touch', async () => {
       const { manager, location, router, dispose } = ingressRouter('/pr/pr-1', {
         touch: true,
       });
       await router.settled();
       expect(manager.splits()[0].content).toMatchObject({
         type: 'component',
-        id: 'tasks',
+        id: 'reviews',
       });
       expect(manager.splits()[0].mount.kind).toBe('component');
-      expect(location.read().pathname).toBe('/tasks/pr/pr-1');
+      expect(location.read().pathname).toBe('/reviews/pr/pr-1');
       router.dispose();
       dispose();
     });
 
-    it('uses the Tasks PR route for existing split navigation', async () => {
+    it('uses the Reviews PR route for existing split navigation', async () => {
       const { manager, location, router, dispose } = ingressRouter('/inbox');
       await router.settled();
       manager.getSplit(manager.splits()[0].id)!.replace({
         next: { type: 'pr', id: 'pr-2' },
       });
       await router.settled();
-      expect(location.read().pathname).toBe('/tasks/pr/pr-2');
+      expect(location.read().pathname).toBe('/reviews/pr/pr-2');
       expect(manager.splits()[0].mount.kind).toBe('component');
       expect(manager.splits()[0].content).toMatchObject({
         type: 'component',
-        id: 'tasks',
+        id: 'reviews',
       });
       router.dispose();
       dispose();
     });
 
-    it('upgrades stored PR route metadata to Tasks content', async () => {
+    it('upgrades stored PR route metadata to Reviews content', async () => {
       const { manager, router, dispose } = ingressRouter('/inbox');
       await router.settled();
       const split = manager.getSplit(manager.splits()[0].id)!;
@@ -967,9 +1038,9 @@ describe('layoutManager', () => {
       await router.settled();
       expect(split.content()).toMatchObject({
         type: 'component',
-        id: 'tasks',
+        id: 'reviews',
       });
-      expect(router.route(split.id)?.matches.at(-1)?.id).toBe('tasks-pr');
+      expect(router.route(split.id)?.matches.at(-1)?.id).toBe('reviews-pr');
       router.dispose();
       dispose();
     });

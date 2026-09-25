@@ -21,6 +21,7 @@ import {
 } from '@app/features/next-soup/route';
 import { ReminderEditorSplit } from '@app/features/reminders/ReminderEditorSplit';
 import { RemindersRouteView } from '@app/features/reminders/route';
+import { ReviewsRouteView } from '@app/features/reviews-view/route';
 import { SettingsRouteView } from '@app/features/settings/route';
 import { TasksRouteView } from '@app/features/tasks-view/route';
 import { EventComposerSplit } from '@block-calendar/components/EventComposerSplit';
@@ -172,6 +173,7 @@ registerComponent(
   () => <DriveRouteView />,
   () => composableLayout(true)
 );
+registerComponent('reviews', () => <ReviewsRouteView />);
 registerComponent(
   'tasks',
   () => <TasksRouteView />,

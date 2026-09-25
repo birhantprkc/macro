@@ -13,9 +13,9 @@ import { SplitFileMenu } from '@components/app/split-layout/components/SplitFile
 import { SplitPanel } from '@components/app/split-panel';
 import { Permissions } from '@core/component/SharePermissions';
 import { onMount } from 'solid-js';
-import { tasksPrRoute } from '../route';
+import { reviewsPrRoute } from '../route';
 
-function TasksPrBreadcrumb(props: {
+function ReviewsPrBreadcrumb(props: {
   foreignEntityId: string;
   name: string;
   status?: string;
@@ -56,7 +56,7 @@ function TasksPrBreadcrumb(props: {
   );
 }
 
-export function TasksPrDetail(props: { foreignEntityId: string }) {
+export function ReviewsPrDetail(props: { foreignEntityId: string }) {
   const analytics = useAnalytics();
   const detail = usePrDetail(() => props.foreignEntityId);
   const name = () => {
@@ -86,7 +86,7 @@ export function TasksPrDetail(props: { foreignEntityId: string }) {
           <ViewBreadcrumbs.Outlet aria-label="Pull request location" />
           <PrDetailActions url={githubUrl()} />
         </ViewShell.TopBar>
-        <TasksPrBreadcrumb
+        <ReviewsPrBreadcrumb
           foreignEntityId={props.foreignEntityId}
           name={name()}
           status={detail.data()?.pullRequest.status ?? undefined}
@@ -103,7 +103,7 @@ export function TasksPrDetail(props: { foreignEntityId: string }) {
   );
 }
 
-export function TasksPrDetailRouteView() {
-  const params = useRouteParams(tasksPrRoute);
-  return <TasksPrDetail foreignEntityId={params.foreignEntityId} />;
+export function ReviewsPrDetailRouteView() {
+  const params = useRouteParams(reviewsPrRoute);
+  return <ReviewsPrDetail foreignEntityId={params.foreignEntityId} />;
 }
